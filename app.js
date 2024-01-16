@@ -1,10 +1,13 @@
 const express = require('express')
 const app = express()
-const port = 3000
+const port = process.env.PORT || 3000
+const apiRouter = require('./routes')
 
-app.get('/', (req, res) => {
-  res.send('express app for ...')
-})
+app.use(express.json())
+
+app.use('/api', apiRouter)
+
+app.use('/', (req, res) => res.json({ success: false, message: 'wrong route' }))
 
 app.listen(port, () => {
   console.log(`express server is running on http://localhost:${port}`)

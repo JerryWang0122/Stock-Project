@@ -1,5 +1,6 @@
 const { User } = require('../models')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
 const userServices = {
   register: (req, cb) => {
@@ -15,6 +16,21 @@ const userServices = {
       .then(hash => User.create({ name, email, password: hash }))
       .then(user => cb(null, user))
       .catch(err => cb(err))
+  },
+  login: (req, cb) => {
+    try {
+      const userData = req.user.toJSON()
+      delete userData.password
+
+      const authToken = jwt.sign(userData, process.env.JWT_SECRET, { expiresIn: '30d' })
+      cb(null, {
+        authToken,
+        username: userData.name,
+        email: userData.email
+      })
+    } catch (error) {
+      cb(error)
+    }
   }
 }
 

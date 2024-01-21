@@ -8,17 +8,22 @@ const JWTStrategy = passportJWT.Strategy
 const ExtractJWT = passportJWT.ExtractJwt
 
 // local strategy
-passport.use(new LocalStrategy((username, password, cb) => {
-  User.findOne({ where: { email: username } })
-    .then(user => {
-      if (!user) cb(null, false)
-      bcrypt.compare(password, user.password).then(match => {
-        if (!match) cb(null, false)
-        return cb(null, user)
+passport.use(new LocalStrategy(
+  // customize user field
+  {
+    usernameField: 'email'
+  },
+  (email, password, cb) => {
+    User.findOne({ where: { email } })
+      .then(user => {
+        if (!user) cb(null, false)
+        bcrypt.compare(password, user.password).then(match => {
+          if (!match) cb(null, false)
+          return cb(null, user)
+        })
       })
-    })
-    .catch(err => cb(err))
-}))
+      .catch(err => cb(err))
+  }))
 
 // jwt strategy
 const jwtOptions = {

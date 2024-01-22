@@ -3,8 +3,11 @@ const userController = require('../controllers/user-controller')
 const { apiErrorHandler } = require('../middleware/error-handler')
 const { checkLocalSignin, authenticated } = require('../middleware/api-auth')
 const stockController = require('../controllers/stock-controller')
+const transactionRouter = require('./modules/transaction')
+
 const router = express.Router()
 
+router.use('/transactions', authenticated, transactionRouter)
 router.post('/register', userController.register)
 router.post('/login', checkLocalSignin, userController.login)
 

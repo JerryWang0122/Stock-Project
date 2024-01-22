@@ -8,16 +8,15 @@ const stockServices = {
     const { symbol } = req.body
 
     Stock.findOne({
-      where: { symbol },
-      attributes: ['symbol', 'name']
+      where: { symbol }
     })
       .then(stock => {
         if (stock) {
-          return cb(null, { symbol: stock.symbol, name: stock.name })
+          return cb(null, { stock })
         }
         stocks.quote({ symbol })
           .then(stockInfo => Stock.create({ symbol: stockInfo.symbol, name: stockInfo.name }))
-          .then(stock => cb(null, { symbol: stock.symbol, name: stock.name }))
+          .then(stock => cb(null, { stock }))
           .catch(err => {
             err.message = `Can not find Stock with symbol: ${symbol}`
             cb(err)

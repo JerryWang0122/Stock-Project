@@ -1,10 +1,10 @@
-const { Stock } = require('../models')
+const { Stock, Transaction } = require('../models')
 const { TwStock } = require('node-twstock')
 const twstock = new TwStock()
 const stocks = twstock.stocks
 
 const stockServices = {
-  getStock: (req, cb) => {
+  getSymbol: (req, cb) => {
     const { symbol } = req.body
 
     Stock.findOne({
@@ -23,6 +23,21 @@ const stockServices = {
           })
       })
       .catch(err => cb(err))
+  },
+  getStock: async (req, cb) => {
+    try {
+      const symbol = req.params.symbol
+      const stock = await Stock.findOne({
+        where: { symbol },
+        include: {
+          model: Transaction,
+          where: { userId: req.user.id }
+        }
+      })
+      cb(null, { stock })
+    } catch (err) {
+      cb(err)
+    }
   }
 }
 

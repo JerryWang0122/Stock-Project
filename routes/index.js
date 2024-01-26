@@ -5,9 +5,11 @@ const { checkLocalSignin, authenticated } = require('../middleware/api-auth')
 const stockController = require('../controllers/stock-controller')
 const transactionRouter = require('./modules/transaction')
 const stockRouter = require('./modules/stock')
+const dividendRouter = require('./modules/dividend')
 
 const router = express.Router()
 
+router.use('/dividends', authenticated, dividendRouter)
 router.use('/transactions', authenticated, transactionRouter)
 router.use('/stocks', authenticated, stockRouter)
 

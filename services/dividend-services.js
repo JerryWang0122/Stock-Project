@@ -80,6 +80,7 @@ const dividendServices = {
 
       // 配息日若更換，持股需重新計算
       const sharesHold = dividend.dividendDate === dividendDate ? dividend.sharesHold : await calcSharesHold(req.user.id, stockId, dividendDate)
+      if (sharesHold < 0) throw new Error('Something wrong with your shares hold! Please check your transaction records.')
 
       dividend.set({ dividendDate, amount, sharesHold, stockId })
       const updatedDividend = await dividend.save()

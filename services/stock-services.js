@@ -1,4 +1,5 @@
-const { Stock, Transaction } = require('../models')
+const { calcSharesHold } = require('../helpers/dividend-helper')
+const { Stock, Transaction, Dividend } = require('../models')
 const { TwStock } = require('node-twstock')
 const twstock = new TwStock()
 const stocks = twstock.stocks
@@ -27,13 +28,31 @@ const stockServices = {
   getStock: async (req, cb) => {
     try {
       const symbol = req.params.symbol
-      const stock = await Stock.findOne({
+      let stock = await Stock.findOne({
         where: { symbol },
-        include: {
-          model: Transaction,
-          where: { userId: req.user.id }
-        }
+        include: [
+          {
+            model: Transaction,
+            where: { userId: req.user.id }
+          },
+          {
+            model: Dividend,
+            where: { userId: req.user.id }
+          }
+        ],
+        order: [[Transaction, 'transDate'], [Dividend, 'dividendDate']]
       })
+      if (!stock) throw new Error('尚未輸入此股票相關紀錄')
+
+      // 整理abstract資料
+      stock = stock.toJSON()
+      const sharesHold = await calcSharesHold(req.user.id, stock.id, new Date())
+      const totalCost = stock.Transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * cur.quantity * cur.pricePerUnit + cur.fee, 0)
+      const accuIncome = stock.Dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
+      const avgCost = sharesHold ? (totalCost - accuIncome) / sharesHold : null
+      const totalReturn = -1 * totalCost + accuIncome
+
+      stock.abstract = { sharesHold, totalCost, accuIncome, avgCost, totalReturn }
       cb(null, { stock })
     } catch (err) {
       cb(err)

@@ -4,8 +4,8 @@ const stockController = {
   getSymbol: (req, res, next) => {
     stockServices.getSymbol(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   },
-  getStock: (req, res, next) => {
-    stockServices.getStock(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  getStockAbstract: (req, res, next) => {
+    stockServices.getStockAbstract(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

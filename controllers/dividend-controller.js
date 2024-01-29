@@ -12,6 +12,9 @@ const dividendController = {
   },
   putDividend: (req, res, next) => {
     dividendServices.putDividend(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  },
+  getDividendsByPage: (req, res, next) => {
+    dividendServices.getDividendsByPage(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

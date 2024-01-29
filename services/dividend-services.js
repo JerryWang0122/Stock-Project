@@ -88,6 +88,27 @@ const dividendServices = {
     } catch (err) {
       cb(err)
     }
+  },
+  getDividendsByPage: async (req, cb) => {
+    const stockId = req.params.stockId
+    const page = parseInt(req.query.page) || 1
+    const limit = 6
+
+    try {
+      if (page < 1) throw new Error('Invalid page query')
+      const dividends = await Dividend.findAll({
+        where: {
+          stockId,
+          userId: req.user.id
+        },
+        offset: (page - 1) * limit,
+        limit,
+        order: [['dividendDate', 'DESC']]
+      })
+      cb(null, { dividends })
+    } catch (err) {
+      cb(err)
+    }
   }
 }
 

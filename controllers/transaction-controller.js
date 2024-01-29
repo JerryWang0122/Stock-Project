@@ -9,6 +9,9 @@ const transController = {
   },
   deleteTransaction: (req, res, next) => {
     transServices.deleteTransaction(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  },
+  getTransactionsByPage: (req, res, next) => {
+    transServices.getTransactionsByPage(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

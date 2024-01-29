@@ -111,6 +111,27 @@ const transServices = {
       await t.rollback()
       cb(err)
     }
+  },
+  getTransactionsByPage: async (req, cb) => {
+    const stockId = req.params.stockId
+    const page = parseInt(req.query.page) || 1
+    const limit = 6
+
+    try {
+      if (page < 1) throw new Error('Invalid page query')
+      const transactions = await Transaction.findAll({
+        where: {
+          stockId,
+          userId: req.user.id
+        },
+        offset: (page - 1) * limit,
+        limit,
+        order: [['transDate', 'DESC']]
+      })
+      cb(null, { transactions })
+    } catch (err) {
+      cb(err)
+    }
   }
 }
 

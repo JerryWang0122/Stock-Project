@@ -25,7 +25,7 @@ const stockServices = {
       })
       .catch(err => cb(err))
   },
-  getStock: async (req, cb) => {
+  getStockAbstract: async (req, cb) => {
     try {
       const symbol = req.params.symbol
       let stock = await Stock.findOne({
@@ -48,12 +48,12 @@ const stockServices = {
       stock = stock.toJSON()
       const sharesHold = await calcSharesHold(req.user.id, stock.id, new Date())
       const totalCost = stock.Transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * cur.quantity * cur.pricePerUnit + cur.fee, 0)
-      const accuIncome = stock.Dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
-      const avgCost = sharesHold ? (totalCost - accuIncome) / sharesHold : null
-      const totalReturn = -1 * totalCost + accuIncome
+      const accIncome = stock.Dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
+      const avgCost = sharesHold ? (totalCost - accIncome) / sharesHold : null
+      const totalReturn = -1 * totalCost + accIncome
 
-      stock.abstract = { sharesHold, totalCost, accuIncome, avgCost, totalReturn }
-      cb(null, { stock })
+      const abstract = { sharesHold, totalCost, accIncome, avgCost, totalReturn }
+      cb(null, { abstract })
     } catch (err) {
       cb(err)
     }

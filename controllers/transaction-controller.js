@@ -12,6 +12,9 @@ const transController = {
   },
   getTransactionsByPage: (req, res, next) => {
     transServices.getTransactionsByPage(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  },
+  getCostRecap: (req, res, next) => {
+    transServices.getCostRecap(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

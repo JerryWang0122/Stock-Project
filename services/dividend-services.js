@@ -109,6 +109,43 @@ const dividendServices = {
     } catch (err) {
       cb(err)
     }
+  },
+  getDividendsRecap: async (req, cb) => {
+    try {
+      const user = await User.findByPk(req.user.id)
+      if (!user) throw new Error("User didn't exist!")
+      // 取得配息資訊
+      const rawDividends = await Dividend.findAll({
+        where: { userId: req.user.id },
+        include: Stock
+      })
+      // 統計交易資料
+      const recap = new Map()
+      rawDividends.forEach(dividend => {
+        const item = dividend.toJSON()
+        if (!recap.has(item.stockId)) {
+          recap.set(item.stockId, {
+            id: item.stockId,
+            symbol: item.Stock.symbol,
+            name: item.Stock.name,
+            stockIncome: item.amount * item.sharesHold
+          })
+        } else {
+          const temp = recap.get(item.stockId)
+          temp.stockIncome += item.amount * item.sharesHold
+        }
+      })
+      const dividendsRecap = Array.from(recap.values())
+      // 檢查空值
+      if (dividendsRecap.length === 0) return cb(null, { totalIncome: 0, dividendsRecap })
+      // sort by income
+      dividendsRecap.sort((a, b) => b.stockIncome - a.stockIncome)
+      const totalIncome = dividendsRecap.reduce((acc, cur) => acc + cur.stockIncome, 0)
+
+      cb(null, { totalIncome, dividendsRecap })
+    } catch (err) {
+      cb(err)
+    }
   }
 }
 

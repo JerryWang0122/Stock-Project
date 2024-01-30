@@ -15,6 +15,9 @@ const dividendController = {
   },
   getDividendsByPage: (req, res, next) => {
     dividendServices.getDividendsByPage(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  },
+  getDividendsRecap: (req, res, next) => {
+    dividendServices.getDividendsRecap(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

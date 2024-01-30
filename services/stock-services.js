@@ -28,31 +28,34 @@ const stockServices = {
   getStockAbstract: async (req, cb) => {
     try {
       const symbol = req.params.symbol
-      let stock = await Stock.findOne({
-        where: { symbol },
-        include: [
-          {
-            model: Transaction,
-            where: { userId: req.user.id }
+      const stock = await Stock.findOne({ where: { symbol } })
+      if (!stock) throw new Error('此股票尚未登入資料庫')
+      let [transactions, dividends] = await Promise.all([
+        Transaction.findAll({
+          where: {
+            userId: req.user.id,
+            stockId: stock.id
           },
-          {
-            model: Dividend,
-            where: { userId: req.user.id }
-          }
-        ],
-        order: [[Transaction, 'transDate'], [Dividend, 'dividendDate']]
-      })
-      if (!stock) throw new Error('尚未輸入此股票相關紀錄')
-
+          order: [['transDate']]
+        }),
+        Dividend.findAll({
+          where: {
+            userId: req.user.id,
+            stockId: stock.id
+          },
+          order: [['dividendDate']]
+        })
+      ])
+      if (!transactions) throw new Error('尚未輸入此股票相關紀錄')
+      transactions = transactions.map(item => item.toJSON())
+      dividends = dividends.map(item => item.toJSON())
       // 整理abstract資料
-      stock = stock.toJSON()
       const sharesHold = await calcSharesHold(req.user.id, stock.id, new Date())
-      const totalCost = stock.Transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * cur.quantity * cur.pricePerUnit + cur.fee, 0)
-      const accIncome = stock.Dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
-      const avgCost = sharesHold ? (totalCost - accIncome) / sharesHold : null
+      const totalCost = transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * cur.quantity * cur.pricePerUnit + cur.fee, 0)
+      const accIncome = dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
       const totalReturn = -1 * totalCost + accIncome
 
-      const abstract = { sharesHold, totalCost, accIncome, avgCost, totalReturn }
+      const abstract = { sharesHold, totalCost, accIncome, totalReturn }
       cb(null, { abstract })
     } catch (err) {
       cb(err)

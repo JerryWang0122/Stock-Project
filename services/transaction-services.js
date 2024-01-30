@@ -21,8 +21,10 @@ const transServices = {
 
     const t = await sequelize.transaction()
     try {
+      // 購入或賣出的股數不該為零
+      if (quantity <= 0) throw new Error('Invalid quantity!')
       // check Date Format
-      if (!isValidDateFormat(transDate)) throw new Error('Invalid Date Format! Should be YYYY-MM-DD')
+      if (!isValidDateFormat(transDate, true)) throw new Error('Invalid Date Format! Should be YYYY-MM-DD')
 
       // 先檢查股票存不存在、User合不合法
       const [stock, user] = await Promise.all([
@@ -129,6 +131,67 @@ const transServices = {
         order: [['transDate', 'DESC']]
       })
       cb(null, { transactions })
+    } catch (err) {
+      cb(err)
+    }
+  },
+  getCostRecap: async (req, cb) => {
+    try {
+      const user = await User.findByPk(req.user.id)
+      if (!user) throw new Error("User didn't exist!")
+      // 取得交易資訊
+      const rawTransactions = await Transaction.findAll({
+        where: { userId: req.user.id },
+        include: Stock,
+        order: [['stockId'], ['isBuy'], ['transDate']]
+      })
+      console.log(rawTransactions)
+      // 統計交易資料
+      const recap = new Map()
+      rawTransactions.forEach(trans => {
+        const item = trans.toJSON()
+        if (!recap.has(item.stockId)) {
+          recap.set(item.stockId, {
+            abstract: {
+              id: item.stockId,
+              symbol: item.Stock.symbol,
+              name: item.Stock.name,
+              sharesHold: item.isBuy ? item.quantity : 0,
+              stockCost: item.isBuy ? item.quantity * item.pricePerUnit + item.fee : 0
+            },
+            ...item.isBuy ? { sell: 0 } : { sell: item.quantity }
+          })
+          console.log(recap.get(item.stockId))
+        } else {
+          const temp = recap.get(item.stockId)
+          if (item.isBuy) {
+            // 買入股票的資料
+            if (temp.sell) {
+              // 賣出的股票還有剩餘時
+              const remains = temp.sell - item.quantity
+              temp.sell = Math.max(remains, 0)
+              const sharesToAdd = Math.max(-remains, 0)
+              temp.abstract.sharesHold += sharesToAdd
+              temp.abstract.stockCost += sharesToAdd * item.pricePerUnit + (sharesToAdd ? item.fee : 0)
+            } else {
+              // 只剩買的
+              temp.abstract.sharesHold += item.quantity
+              temp.abstract.stockCost += item.quantity * item.pricePerUnit + item.fee
+            }
+          } else {
+            // 賣出股票的資料
+            temp.sell += item.quantity
+          }
+        }
+      })
+      const costRecap = Array.from(recap.values())
+        .map(elm => elm.abstract)
+        .filter(elm => elm.sharesHold !== 0)
+        .sort((a, b) => b.stockCost - a.stockCost)
+
+      const totalCost = costRecap.reduce((acc, cur) => acc + cur.stockCost, 0)
+
+      cb(null, { totalCost, costRecap })
     } catch (err) {
       cb(err)
     }

@@ -15,6 +15,9 @@ const transController = {
   },
   getCostRecap: (req, res, next) => {
     transServices.getCostRecap(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
+  },
+  getMarginRecap: (req, res, next) => {
+    transServices.getMarginRecap(req, (err, data) => err ? next(err) : res.json({ success: true, data }))
   }
 }
 

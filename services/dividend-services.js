@@ -128,11 +128,11 @@ const dividendServices = {
             id: item.stockId,
             symbol: item.Stock.symbol,
             name: item.Stock.name,
-            stockIncome: item.amount * item.sharesHold
+            stockIncome: Math.floor(item.amount * item.sharesHold)
           })
         } else {
           const temp = recap.get(item.stockId)
-          temp.stockIncome += item.amount * item.sharesHold
+          temp.stockIncome += Math.floor(item.amount * item.sharesHold)
         }
       })
       const dividendsRecap = Array.from(recap.values())

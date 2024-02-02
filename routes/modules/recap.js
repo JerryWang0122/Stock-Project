@@ -5,5 +5,6 @@ const router = express.Router()
 
 router.get('/cost', transController.getCostRecap)
 router.get('/dividends', dividendController.getDividendsRecap)
+router.get('/margin', transController.getMarginRecap)
 
 module.exports = router

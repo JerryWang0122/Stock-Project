@@ -51,8 +51,8 @@ const stockServices = {
       dividends = dividends.map(item => item.toJSON())
       // 整理abstract資料
       const sharesHold = await calcSharesHold(req.user.id, stock.id, new Date())
-      const totalCost = transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * cur.quantity * cur.pricePerUnit + cur.fee, 0)
-      const accIncome = dividends.reduce((acc, cur) => acc + cur.sharesHold * cur.amount, 0)
+      const totalCost = transactions.reduce((acc, cur) => acc + (cur.isBuy ? 1 : -1) * Math.floor(cur.quantity * cur.pricePerUnit) + cur.fee, 0)
+      const accIncome = dividends.reduce((acc, cur) => acc + Math.floor(cur.sharesHold * cur.amount), 0)
       const totalReturn = -1 * totalCost + accIncome
 
       const abstract = { sharesHold, totalCost, accIncome, totalReturn }

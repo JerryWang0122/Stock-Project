@@ -156,7 +156,7 @@ const transServices = {
               symbol: item.Stock.symbol,
               name: item.Stock.name,
               sharesHold: item.isBuy ? item.quantity : 0,
-              stockCost: item.isBuy ? Math.floor(item.quantity * item.pricePerUnit) + item.fee : 0
+              stockCost: item.isBuy ? Math.floor(item.quantity * item.pricePerUnit) : 0
             },
             ...item.isBuy ? { sell: 0 } : { sell: item.quantity }
           })
@@ -170,11 +170,11 @@ const transServices = {
               temp.sell = Math.max(remains, 0)
               const sharesToAdd = Math.max(-remains, 0)
               temp.abstract.sharesHold += sharesToAdd
-              temp.abstract.stockCost += Math.floor(sharesToAdd * item.pricePerUnit) + (sharesToAdd ? item.fee : 0)
+              temp.abstract.stockCost += Math.floor(sharesToAdd * item.pricePerUnit)
             } else {
               // 只剩買的
               temp.abstract.sharesHold += item.quantity
-              temp.abstract.stockCost += Math.floor(item.quantity * item.pricePerUnit) + item.fee
+              temp.abstract.stockCost += Math.floor(item.quantity * item.pricePerUnit)
             }
           } else {
             // 賣出股票的資料
@@ -195,6 +195,7 @@ const transServices = {
     }
   },
   // 已實現損益
+  // 手續費算已實現損益
   getMarginRecap: async (req, cb) => {
     try {
       const user = await User.findByPk(req.user.id)
@@ -210,18 +211,16 @@ const transServices = {
       rawTransactions.forEach(trans => {
         const item = trans.toJSON()
         if (!recap.has(item.stockId)) {
-          if (!item.isBuy) { // 透過前兩個if，剩下進來是尚未有初始值，且第一筆資料是賣的狀況
-            recap.set(item.stockId, {
-              abstract: {
-                id: item.stockId,
-                symbol: item.Stock.symbol,
-                name: item.Stock.name,
-                // 賣的部分是賺錢，但手續費要扣除
-                stockMargin: Math.floor(item.quantity * item.pricePerUnit) - item.fee
-              },
-              sharesSell: item.quantity
-            })
-          }
+          recap.set(item.stockId, {
+            abstract: {
+              id: item.stockId,
+              symbol: item.Stock.symbol,
+              name: item.Stock.name,
+              // 買的部分，手續費屬於已實現損益；賣的部分是賺錢，但手續費要扣除
+              stockMargin: item.isBuy ? -item.fee : Math.floor(item.quantity * item.pricePerUnit) - item.fee
+            },
+            sharesSell: item.isBuy ? 0 : item.quantity
+          })
         } else {
           const temp = recap.get(item.stockId)
           if (item.isBuy) { // 買入股票的資料
@@ -229,6 +228,8 @@ const transServices = {
               // margin 扣除買入成本
               temp.abstract.stockMargin -= (Math.floor(Math.min(temp.sharesSell, item.quantity) * item.pricePerUnit) + item.fee)
               temp.sharesSell = Math.max(temp.sharesSell - item.quantity, 0)
+            } else {
+              temp.abstract.stockMargin -= item.fee
             }
           } else {
             // 賣出股票的資料

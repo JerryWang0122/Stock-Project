@@ -1,6 +1,8 @@
 const { calcSharesHold } = require('../helpers/dividend-helper')
-const { Stock, Transaction, Dividend } = require('../models')
+const { generateMonthArray } = require('../helpers/input-helper')
+const { Stock, Transaction, Dividend, sequelize } = require('../models')
 const { TwStock } = require('node-twstock')
+const { Op } = require('sequelize')
 const twstock = new TwStock()
 const stocks = twstock.stocks
 
@@ -57,6 +59,120 @@ const stockServices = {
 
       const abstract = { sharesHold, totalCost, accIncome, totalReturn }
       cb(null, { abstract })
+    } catch (err) {
+      cb(err)
+    }
+  },
+  getRecapDiagram: async (req, cb) => {
+    try {
+      const period = parseInt(req.body.period)
+      const monthArr = await generateMonthArray(period, req.user.id)
+      const accIncomeArr = []
+      let accIncome = 0
+      const transMap = new Map()
+      const investmentCostArr = []
+
+      const [dividends, transactions] = await Promise.all([
+        Promise.all(monthArr.map((month, idx, arr) => {
+          if (idx !== 0) {
+            return Dividend.findAll({
+              where: {
+                [Op.and]: [
+                  { userId: req.user.id },
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('dividend_date'), '%Y-%m'), {
+                    [Op.lte]: month
+                  }),
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('dividend_date'), '%Y-%m'), {
+                    [Op.gt]: arr[idx - 1]
+                  })
+                ]
+              }
+            })
+          } else {
+            return Dividend.findAll({
+              where: {
+                [Op.and]: [
+                  { userId: req.user.id },
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('dividend_date'), '%Y-%m'), {
+                    [Op.lte]: month
+                  })
+                ]
+              }
+            })
+          }
+        })),
+        Promise.all(monthArr.map((month, idx, arr) => {
+          if (idx !== 0) {
+            return Transaction.findAll({
+              where: {
+                [Op.and]: [
+                  { userId: req.user.id },
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('trans_date'), '%Y-%m'), {
+                    [Op.lte]: month
+                  }),
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('trans_date'), '%Y-%m'), {
+                    [Op.gt]: arr[idx - 1]
+                  })
+                ]
+              },
+              order: [['stockId'], ['isBuy', 'DESC'], ['transDate']]
+            })
+          } else {
+            return Transaction.findAll({
+              where: {
+                [Op.and]: [
+                  { userId: req.user.id },
+                  sequelize.where(sequelize.fn('DATE_FORMAT', sequelize.col('trans_date'), '%Y-%m'), {
+                    [Op.lte]: month
+                  })
+                ]
+              },
+              order: [['stockId'], ['isBuy', 'DESC'], ['transDate']]
+            })
+          }
+        }))
+      ])
+
+      // Dividend data
+      for (const sectionDividend of dividends) {
+        for (const item of sectionDividend) {
+          accIncome += Math.floor(item.sharesHold * item.amount)
+        }
+        accIncomeArr.push(accIncome)
+      }
+
+      // Transaction data
+      for (const sectionTransaction of transactions) {
+        for (const item of sectionTransaction) {
+          if (!transMap.has(item.stockId)) {
+            transMap.set(item.stockId, {
+              buyCost: [{ quantity: item.quantity, pricePerUnit: item.pricePerUnit }]
+            })
+          } else {
+            const temp = transMap.get(item.stockId)
+            if (item.isBuy) {
+              temp.buyCost.push({ quantity: item.quantity, pricePerUnit: item.pricePerUnit })
+            } else {
+            // 賣出股票的資料
+              let sellShares = item.quantity
+              while (sellShares > 0 && temp.buyCost.length > 0) {
+                // 已買入的股票夠不夠賣，負值代表不夠
+                const remains = temp.buyCost[0].quantity - sellShares
+                sellShares = Math.max(-remains, 0)
+                remains <= 0 ? temp.buyCost.shift() : temp.buyCost[0].quantity = remains
+              }
+            }
+          }
+        }
+        // 該期資料計算結束，登記投資成本
+        investmentCostArr.push(
+          Array.from(transMap.values())
+            .map(i => i.buyCost.reduce((acc, cur) => acc + Math.floor(cur.quantity * cur.pricePerUnit), 0))
+            .reduce((acc, cur) => acc + cur, 0)
+        )
+      }
+
+      cb(null, { monthArr, accIncomeArr, investmentCostArr })
     } catch (err) {
       cb(err)
     }
